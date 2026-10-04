@@ -285,7 +285,9 @@ Bộ tài liệu đầy đủ nằm trong [`docs/`](docs/README.md). Mọi nhậ
 
 ## 18. Tiến độ
 
-Dự án triển khai tuần tự qua **24 phase** (PHASE 00–23), mỗi phase phải qua *quality gate* mới được đi tiếp. Mỗi phase là một Issue trên GitHub.
+Dự án triển khai tuần tự qua **24 phase** (PHASE 00–23), mỗi phase phải qua *quality gate* mới được đi tiếp.
+Mỗi phase là một Issue (PHASE *NN* = issue #*NN+1*); các việc viết khóa luận và bảo vệ là issue #25–#31.
+👉 **Roadmap tổng: [issue #32](https://github.com/TruongTanNghia/Project_KhoaLuan-Ha/issues/32)** · [Danh sách Issues](https://github.com/TruongTanNghia/Project_KhoaLuan-Ha/issues) · [Milestones R1–R12](https://github.com/TruongTanNghia/Project_KhoaLuan-Ha/milestones)
 
 | Giai đoạn | Phase | Trạng thái |
 |-----------|-------|------------|
