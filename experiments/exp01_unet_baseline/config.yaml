@@ -1,0 +1,10 @@
+# EXP01 — U-Net + BCE  (baseline thuần)
+# Ablation 2x2: [U-Net | Attention U-Net] x [BCE | BCE+Dice]
+_base_: ../../configs/unet.yaml
+
+experiment:
+  name: exp01_unet_baseline
+  description: "U-Net baseline, loss = BCE"
+
+loss:
+  name: bce

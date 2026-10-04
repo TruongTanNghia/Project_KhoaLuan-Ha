@@ -1,0 +1,10 @@
+# EXP02 — U-Net + (BCE + Dice)
+# So với EXP01: chỉ đổi loss -> đo tác động của Dice loss.
+_base_: ../../configs/unet.yaml
+
+experiment:
+  name: exp02_unet_dice
+  description: "U-Net, loss = BCE + Dice"
+
+loss:
+  name: bce_dice

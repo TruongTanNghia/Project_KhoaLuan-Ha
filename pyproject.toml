@@ -1,0 +1,20 @@
+[project]
+name = "lung-nodule-unet"
+version = "0.0.1"
+description = "Lung nodule segmentation on CT (LIDC-IDRI) with U-Net and Attention U-Net"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+# Runtime dependencies are pinned in requirements.txt (PHASE 01).
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra"

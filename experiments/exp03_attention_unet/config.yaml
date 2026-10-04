@@ -1,0 +1,10 @@
+# EXP03 — Attention U-Net + BCE
+# So với EXP01: chỉ đổi kiến trúc -> đo tác động của attention gate.
+_base_: ../../configs/attention_unet.yaml
+
+experiment:
+  name: exp03_attention_unet
+  description: "Attention U-Net, loss = BCE"
+
+loss:
+  name: bce

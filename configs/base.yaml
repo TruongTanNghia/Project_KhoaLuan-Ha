@@ -1,0 +1,216 @@
+# =============================================================================
+# base.yaml — Cấu hình gốc của toàn bộ pipeline.
+#
+# Quy ước:
+#   * Mọi file cấu hình khác kế thừa file này qua khóa `_base_`.
+#   * Đường dẫn tương đối được resolve theo PROJECT ROOT (thư mục chứa README.md).
+#   * Không hard-code đường dẫn dataset trong code. Đổi đường dẫn bằng:
+#       - biến môi trường LIDC_IDRI_DIR, hoặc
+#       - tham số CLI:  --set paths.raw_dir=D:/datasets/LIDC-IDRI
+#   * Giá trị đánh dấu "[PHASE xx]" là giá trị khởi tạo; phase tương ứng sẽ
+#     kiểm chứng/điều chỉnh và ghi lý do vào docs/DATA_ASSUMPTIONS.md.
+# =============================================================================
+
+project:
+  name: lung_nodule_unet
+  # Tăng version mỗi khi logic tiền xử lý / ground truth thay đổi.
+  # Mọi experiment ghi lại dataset_version để so sánh công bằng.
+  dataset_version: "lidc_v0"
+  seed: 42
+  deterministic: true
+
+paths:
+  raw_dir: data/raw/LIDC-IDRI
+  interim_dir: data/interim
+  processed_dir: data/processed
+  splits_dir: data/splits
+  checkpoints_dir: checkpoints
+  logs_dir: logs
+  results_dir: results
+  experiments_dir: experiments
+
+# -----------------------------------------------------------------------------
+# [PHASE 02] Kiểm tra dữ liệu thô
+# -----------------------------------------------------------------------------
+data_validation:
+  # LIDC-IDRI có cả ảnh X-quang ngực (CR/DX); phiên bản này chỉ dùng CT.
+  required_modality: CT
+  # Series có quá ít slice thường là scout/localizer, không phải volume CT.
+  min_slices_per_series: 30
+  # Sai lệch tương đối cho phép giữa các khoảng cách slice liên tiếp.
+  slice_spacing_tolerance: 0.1
+  # Hành vi khi gặp lỗi: "stop" = dừng pipeline (mặc định, an toàn),
+  # "report" = chỉ ghi báo cáo.
+  on_error: stop
+
+# -----------------------------------------------------------------------------
+# [PHASE 04-06] Annotation -> contour -> ground-truth mask
+# -----------------------------------------------------------------------------
+annotation:
+  # LIDC chỉ vẽ contour cho "nodule >= 3 mm". Nodule < 3 mm và non-nodule
+  # chỉ có tọa độ tâm -> không dùng làm mask phân đoạn.
+  min_nodule_diameter_mm: 3.0
+  # Khoảng cách tối đa (mm) giữa tâm các annotation của các bác sĩ khác nhau
+  # để coi là cùng MỘT nodule vật lý (annotation LIDC không được liên kết sẵn).
+  cluster_distance_mm: 5.0        # [PHASE 05] cần kiểm chứng trên dữ liệu thật
+  max_radiologists: 4
+  consensus:
+    # majority     : pixel thuộc nodule nếu số phiếu >= ceil(level * N)
+    # union        : hợp tất cả contour
+    # intersection : giao tất cả contour
+    method: majority
+    level: 0.5
+    # N trong công thức majority:
+    #   all_readers    : số bác sĩ đọc scan (thường 4) -> level 0.5 = ">= 2/4"
+    #   nodule_readers : số bác sĩ đã vẽ nodule đó     -> nodule 2 người vẽ
+    #                    với level 0.5 sẽ thành union (chỉ cần 1 phiếu)
+    denominator: all_readers
+    # Bỏ nodule chỉ được ít hơn N bác sĩ đánh dấu (1 = giữ tất cả).
+    min_radiologists: 1
+  # Theo hướng dẫn LIDC, contour được vẽ sát bên ngoài nodule.
+  # [PHASE 06] kiểm chứng trực quan trước khi chốt giá trị.
+  include_contour_boundary: true
+
+# -----------------------------------------------------------------------------
+# [PHASE 08-09] HU conversion, windowing, normalization
+# -----------------------------------------------------------------------------
+preprocessing:
+  hu:
+    # HU = pixel * RescaleSlope + RescaleIntercept (đọc từ DICOM header).
+    # Giá trị ngoài vùng ảnh (padding, thường -2000/-3024) được clip về min_hu.
+    min_hu: -1024
+    max_hu: 3071
+  window:
+    # Cửa sổ phổi chuẩn: WL = -600, WW = 1500  ->  [-1350, 150] HU.
+    level: -600
+    width: 1500
+  normalization: minmax_window    # map cửa sổ HU về [0, 1]
+  # null = giữ nguyên spacing gốc. [PHASE 09] cân nhắc resample in-plane.
+  target_spacing_xy_mm: null
+
+# -----------------------------------------------------------------------------
+# [PHASE 10] ROI / cropping
+# -----------------------------------------------------------------------------
+roi:
+  # nodule_centered : patch quanh nodule + patch âm lấy ngẫu nhiên trong phổi
+  # full_slice      : toàn bộ slice (resize về image_size)
+  strategy: nodule_centered
+  patch_size: [128, 128]
+  # Số patch âm (không có nodule) trên mỗi patch dương.
+  negative_ratio: 1.0
+  # Dịch tâm patch ngẫu nhiên để model không học "nodule luôn ở giữa".
+  center_jitter_px: 16
+
+# -----------------------------------------------------------------------------
+# [PHASE 11] Chia dữ liệu — LUÔN theo bệnh nhân (patient-level).
+# Không có tùy chọn chia theo slice: đó là nguồn data leakage.
+# -----------------------------------------------------------------------------
+split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  # Phân tầng theo số lượng/kích thước nodule để các tập có phân bố tương tự.
+  stratify_by: nodule_size_bin
+
+# -----------------------------------------------------------------------------
+# [PHASE 12-13] Dataset / DataLoader / Augmentation
+# -----------------------------------------------------------------------------
+dataset:
+  image_size: [128, 128]
+  in_channels: 1
+  # Windows: num_workers > 0 cần guard `if __name__ == "__main__"`.
+  num_workers: 2
+  pin_memory: true
+
+augmentation:
+  enabled: true
+  # Chỉ dùng phép biến đổi hợp lý về mặt giải phẫu/vật lý CT.
+  horizontal_flip_p: 0.5
+  vertical_flip_p: 0.0
+  rotate_limit_deg: 15
+  rotate_p: 0.3
+  scale_limit: 0.1
+  brightness_contrast_p: 0.0
+  gaussian_noise_p: 0.0
+
+# -----------------------------------------------------------------------------
+# [PHASE 14, 18] Model
+# -----------------------------------------------------------------------------
+model:
+  name: unet                       # unet | attention_unet
+  in_channels: 1
+  out_channels: 1                  # binary: nodule vs. background
+  base_channels: 32                # GPU 4 GB -> giữ model gọn
+  depth: 4
+  norm: batch
+  dropout: 0.0
+
+# -----------------------------------------------------------------------------
+# [PHASE 15] Loss
+# -----------------------------------------------------------------------------
+loss:
+  name: bce                        # bce | dice | bce_dice
+  bce_weight: 0.5
+  dice_weight: 0.5
+  # null = không cân bằng. Có thể đặt > 1 vì pixel nodule rất ít.
+  pos_weight: null
+  smooth: 1.0
+
+# -----------------------------------------------------------------------------
+# [PHASE 16-17] Training / Validation
+# -----------------------------------------------------------------------------
+optimizer:
+  name: adamw
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  betas: [0.9, 0.999]
+
+scheduler:
+  name: cosine                     # cosine | plateau | none
+  min_lr: 1.0e-6
+  plateau_patience: 5
+  plateau_factor: 0.5
+
+training:
+  epochs: 100
+  batch_size: 16
+  amp: true                        # mixed precision, giảm VRAM
+  grad_clip_norm: 1.0
+  log_interval: 20
+  early_stopping:
+    enabled: true
+    monitor: val_dice
+    mode: max
+    patience: 15
+    min_delta: 1.0e-4
+  checkpoint:
+    monitor: val_dice
+    mode: max
+    save_best: true
+    save_last: true
+
+# -----------------------------------------------------------------------------
+# [PHASE 19-21] Evaluation
+# -----------------------------------------------------------------------------
+evaluation:
+  threshold: 0.5
+  metrics: [dice, iou, precision, recall, hd95]
+  # Cách xử lý mẫu không có nodule trong ground truth (Dice không xác định khi
+  # cả GT và prediction đều rỗng). [PHASE 19] chốt và ghi vào báo cáo.
+  empty_gt_policy: report_separately
+  # [PHASE 21] Ngưỡng phân loại lỗi (docs/13). Chốt trên VALIDATION trước khi chạy test.
+  failure_thresholds:
+    missed_dice: 0.1
+    good_dice: null            # null = phân vị 75 của Dice giữa các bác sĩ (tính ở PHASE 19)
+    precision_recall_gap: 0.2
+  small_nodule_mm: 6.0
+  # Đánh giá phát hiện thứ cấp (docs/00 phương án B, docs/10 mục 7).
+  detection:
+    enabled: true
+    hit_criterion: overlap     # overlap | center_distance (chốt ở PHASE 19)
+  bootstrap_iterations: 1000
+  num_visualization_samples: 20
+
+logging:
+  level: INFO
+  tensorboard: true

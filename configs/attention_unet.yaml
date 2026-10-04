@@ -1,0 +1,13 @@
+# MODEL 02 — Attention U-Net (Oktay et al., 2018).
+# Giống U-Net baseline (cùng depth, base_channels) và chỉ thêm attention gate
+# trên skip connection -> so sánh công bằng: khác biệt chỉ đến từ attention.
+_base_: base.yaml
+
+experiment:
+  name: attention_unet_default
+  description: "Attention U-Net, 2D, binary lung-nodule segmentation"
+
+model:
+  name: attention_unet
+  # Số kênh trung gian của attention gate = gate_channels_ratio * kênh skip.
+  gate_channels_ratio: 0.5

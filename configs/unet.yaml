@@ -1,0 +1,10 @@
+# MODEL 01 — U-Net baseline (Ronneberger et al., 2015).
+# Chỉ ghi các khóa khác với base.yaml.
+_base_: base.yaml
+
+experiment:
+  name: unet_default
+  description: "U-Net baseline, 2D, binary lung-nodule segmentation"
+
+model:
+  name: unet

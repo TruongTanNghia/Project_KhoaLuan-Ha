@@ -1,0 +1,60 @@
+# ---------------- Python ----------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ---------------- Environments ----------------
+.venv/
+venv/
+env/
+.env
+
+# ---------------- IDE / OS ----------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------------- Data (large / licensed: never commit) ----------------
+# LIDC-IDRI is >120 GB and redistributed by TCIA under its own terms.
+data/raw/**
+data/interim/**
+data/processed/images/**
+data/processed/masks/**
+# Re-include directories (so git can descend) and the .gitkeep placeholders.
+!data/**/
+!data/**/.gitkeep
+# Kept under version control (small, needed for reproducibility):
+#   data/processed/metadata/*.csv|json  (sample index, manifest)
+#   data/splits/*.csv|json              (patient-level split)
+
+# ---------------- Training artefacts ----------------
+checkpoints/**
+!checkpoints/.gitkeep
+logs/**
+!logs/.gitkeep
+experiments/*/tensorboard/
+*.pt
+*.pth
+*.ckpt
+
+# ---------------- Heavy results (regenerable) ----------------
+results/predictions/**
+!results/predictions/.gitkeep
+results/overlays/**
+!results/overlays/.gitkeep
+# results/metrics, results/curves, results/failure_cases are kept (thesis evidence)
+
+# ---------------- Medical image formats (safety net) ----------------
+*.dcm
+*.nii
+*.nii.gz
+*.npy
+*.npz

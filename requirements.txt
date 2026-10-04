@@ -1,0 +1,9 @@
+# =============================================================================
+# requirements.txt
+# Status: PHASE 00 placeholder — dependencies are selected, pinned and
+# verified in PHASE 01 (environment + dependencies).
+#
+# PHASE 00 only needs:
+pyyaml>=6.0
+# Optional in PHASE 00 (used by seed checks if present): numpy, torch, pytest
+# =============================================================================

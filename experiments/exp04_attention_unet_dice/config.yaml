@@ -1,0 +1,9 @@
+# EXP04 — Attention U-Net + (BCE + Dice)  (phương pháp đề xuất)
+_base_: ../../configs/attention_unet.yaml
+
+experiment:
+  name: exp04_attention_unet_dice
+  description: "Attention U-Net, loss = BCE + Dice (proposed)"
+
+loss:
+  name: bce_dice
